@@ -2,6 +2,7 @@
 
 namespace Kreait\Firebase\Http;
 
+use GuzzleHttp\Psr7;
 use Psr\Http\Message\RequestInterface;
 
 class Middleware
@@ -41,6 +42,24 @@ class Middleware
         return function (callable $handler) use ($override) {
             return function (RequestInterface $request, array $options = []) use ($handler, $override) {
                 return $handler($override->authenticateRequest($request), $options);
+            };
+        };
+    }
+
+    public static function ensureApiKey(string $apiKey): callable
+    {
+        return function (callable $handler) use ($apiKey) {
+            return function (RequestInterface $request, array $options = []) use ($handler, $apiKey) {
+                $uri = $request->getUri();
+
+                $queryParams = ['key' => $apiKey] + Psr7\parse_query($uri->getQuery());
+                $queryString = Psr7\build_query($queryParams);
+
+                $newUri = $uri->withQuery($queryString);
+                $request = $request->withUri($newUri);
+                $request = $request->withHeader('Content-Type', 'application/json');
+
+                return $handler($request, $options);
             };
         };
     }

@@ -9,7 +9,7 @@ use GuzzleHttp\Client;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Psr7;
 use Kreait\Firebase\Database;
-use Kreait\Firebase\Database\ApiClient;
+use Kreait\Firebase\Exception\LogicException;
 use Kreait\Firebase\Http\Auth;
 use Kreait\Firebase\Http\Auth\CustomToken;
 use Kreait\Firebase\Http\Middleware;
@@ -38,11 +38,17 @@ class Firebase
      */
     private $tokenHandler;
 
-    public function __construct(ServiceAccount $serviceAccount, UriInterface $databaseUri, TokenHandler $tokenHandler)
+    /**
+     * @var Auth|null
+     */
+    private $auth;
+
+    public function __construct(ServiceAccount $serviceAccount, UriInterface $databaseUri, TokenHandler $tokenHandler, Firebase\Auth $auth = null)
     {
         $this->serviceAccount = $serviceAccount;
         $this->databaseUri = $databaseUri;
         $this->tokenHandler = $tokenHandler;
+        $this->auth = $auth;
     }
 
     /**
@@ -99,6 +105,15 @@ class Firebase
         return $this->tokenHandler;
     }
 
+    public function getAuth(): Firebase\Auth
+    {
+        if (!$this->auth) {
+            throw new LogicException('You need to configure Firebase with an API key to use the Authentication capabilities.');
+        }
+
+        return $this->auth;
+    }
+
     private function withCustomAuth(Auth $override): Firebase
     {
         $firebase = new self($this->serviceAccount, $this->databaseUri, $this->tokenHandler);
@@ -114,7 +129,7 @@ class Firebase
         return new Database($this->databaseUri, $client);
     }
 
-    private function createDatabaseClient(UriInterface $databaseUri): ApiClient
+    private function createDatabaseClient(UriInterface $databaseUri): Database\ApiClient
     {
         $googleAuthTokenMiddleware = $this->createGoogleAuthTokenMiddleware($this->serviceAccount);
 
@@ -128,7 +143,7 @@ class Firebase
             'auth' => 'google_auth',
         ]);
 
-        return new ApiClient($http);
+        return new Database\ApiClient($http);
     }
 
     private function createGoogleAuthTokenMiddleware(ServiceAccount $serviceAccount): AuthTokenMiddleware

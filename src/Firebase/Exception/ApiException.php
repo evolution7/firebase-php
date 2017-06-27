@@ -25,6 +25,6 @@ class ApiException extends \RuntimeException implements FirebaseException
             return new PermissionDenied($message, $code, $e);
         }
 
-        return new self($e->getMessage(), $e->getCode(), $e);
+        return new static($e->getMessage(), $e->getCode(), $e);
     }
 }

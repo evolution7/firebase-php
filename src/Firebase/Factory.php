@@ -3,8 +3,12 @@
 namespace Kreait\Firebase;
 
 use Firebase\Auth\Token\Handler as TokenHandler;
+use GuzzleHttp\Client;
+use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Psr7;
 use Kreait\Firebase;
+use Kreait\Firebase\Auth\ApiClient;
+use Kreait\Firebase\Http\Middleware;
 use Kreait\Firebase\ServiceAccount\Discoverer;
 use Psr\Http\Message\UriInterface;
 
@@ -29,6 +33,11 @@ final class Factory
      * @var Discoverer
      */
     private $serviceAccountDiscoverer;
+
+    /**
+     * @var string
+     */
+    private $apiKey;
 
     private static $databaseUriPattern = 'https://%s.firebaseio.com';
 
@@ -76,6 +85,14 @@ final class Factory
         return $factory;
     }
 
+    public function withApiKey(string $apiKey): self
+    {
+        $factory = clone $this;
+        $factory->apiKey = $apiKey;
+
+        return $factory;
+    }
+
     public function withTokenHandler(TokenHandler $handler): self
     {
         $factory = clone $this;
@@ -89,8 +106,9 @@ final class Factory
         $serviceAccount = $this->serviceAccount ?? $this->getServiceAccountDiscoverer()->discover();
         $databaseUri = $this->databaseUri ?? $this->getDatabaseUriFromServiceAccount($serviceAccount);
         $tokenHandler = $this->tokenHandler ?? $this->getDefaultTokenHandler($serviceAccount);
+        $auth = $this->apiKey ? $this->createAuth($this->apiKey) : null;
 
-        return new Firebase($serviceAccount, $databaseUri, $tokenHandler);
+        return new Firebase($serviceAccount, $databaseUri, $tokenHandler, $auth);
     }
 
     private function getServiceAccountDiscoverer(): Discoverer
@@ -110,5 +128,25 @@ final class Factory
             $serviceAccount->getClientEmail(),
             $serviceAccount->getPrivateKey()
         );
+    }
+
+    private function createAuth(string $apiKey): Auth
+    {
+        $client = $this->createAuthClient($apiKey);
+
+        return new Auth($client);
+    }
+
+    private function createAuthClient(string $apiKey): ApiClient
+    {
+        $stack = HandlerStack::create();
+        $stack->push(Middleware::ensureApiKey($apiKey), 'ensure_api_key');
+
+        $http = new Client([
+            'base_uri' => 'https://www.googleapis.com/identitytoolkit/v3/relyingparty/',
+            'handler' => $stack,
+        ]);
+
+        return new ApiClient($http);
     }
 }
