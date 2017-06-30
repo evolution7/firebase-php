@@ -60,6 +60,24 @@ class UserManager
         ;
     }
 
+    public function changePasswordForUser(User $user, string $newPassword): User
+    {
+        $response = $this->client->changePasswordForUser($user, $newPassword);
+
+        $data = JSON::decode((string) $response->getBody(), true);
+
+        $withChangedPassword = (new User($data['localId']))
+            ->setEmail(new Email($data['email']))
+            ->setIdToken($data['idToken'])
+            ->setRefreshToken($data['refreshToken']);
+
+        if ($user->hasProfile()) {
+            $withChangedPassword->setProfile($user->getProfile());
+        }
+
+        return $withChangedPassword;
+    }
+
     public function loadProfile(User $user): User
     {
         $response = $this->client->getAccountInfo($user);

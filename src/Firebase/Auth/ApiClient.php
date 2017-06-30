@@ -98,4 +98,24 @@ class ApiClient
             throw new ApiException($message, $e->getCode(), $e);
         }
     }
+
+    public function changePasswordForUser(User $user, string $newPassword): ResponseInterface
+    {
+        try {
+            return $this->httpClient->request(RequestMethod::METHOD_POST, 'setAccountInfo', [
+                'json' => [
+                    'idToken' => $user->getIdToken(),
+                    'password' => $newPassword,
+                    'returnSecureToken' => true,
+                ]
+            ]);
+        } catch (RequestException $e) {
+            $message = $e->getMessage();
+            if ($response = $e->getResponse()) {
+                $message = JSON::decode((string)$response->getBody(), true)['error']['message'] ?? $message;
+            }
+
+            throw new ApiException($message, $e->getCode(), $e);
+        }
+    }
 }

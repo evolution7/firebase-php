@@ -87,6 +87,11 @@ class User
         return $this;
     }
 
+    public function hasProfile(): bool
+    {
+        return (bool) $this->profile;
+    }
+
     public function getProfile(): Profile
     {
         return $this->profile;
